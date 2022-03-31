@@ -11,14 +11,14 @@ use std::error::Error;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use std::{io, thread};
-fn main() -> Result <(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let mut audio = Audio::new();
-    audio.add("explode", "explode.wav");
-    audio.add("lose", "lose.wav");
-    audio.add("move", "move.wav");
-    audio.add("pew", "pew.wav");
-    audio.add("startup", "startup.wav");
-    audio.add("win", "win.wav");
+    audio.add("explode", "audio/explode.wav");
+    audio.add("lose", "audio/lose.wav");
+    audio.add("move", "audio/move.wav");
+    audio.add("pew", "audio/pew.wav");
+    audio.add("startup", "audio/startup.wav");
+    audio.add("win", "audio/win.wav");
     audio.play("startup");
 
     // Terminal
@@ -40,7 +40,7 @@ fn main() -> Result <(), Box<dyn Error>> {
             };
             render::render(&mut stdout, &last_frame, &curr_frame, false);
             last_frame = curr_frame;
-        };
+        }
     });
 
     // Game loop

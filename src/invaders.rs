@@ -27,7 +27,7 @@ impl Invaders {
                     && (x % 2 == 0)
                     && (y % 2 == 0)
                 {
-                    army.push(Invader { x,y });
+                    army.push(Invader { x, y });
                 }
             }
         }
