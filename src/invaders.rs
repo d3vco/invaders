@@ -21,7 +21,7 @@ impl Invaders {
         for x in 0..NUM_COLS {
             for y in 0..NUM_ROWS {
                 if (x > 1)
-                    && (x < NUM_ROWS - 2)
+                    && (x < NUM_COLS - 2)
                     && (y > 0)
                     && (y < 9)
                     && (x % 2 == 0)
