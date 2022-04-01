@@ -1,16 +1,58 @@
+use cgmath::Vector2;
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
-use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{event, terminal, ExecutableCommand};
-use invaders::frame::{new_frame, Drawable};
-use invaders::invaders::Invaders;
-use invaders::player::Player;
-use invaders::{frame, render};
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use rusty_audio::Audio;
 use std::error::Error;
-use std::sync::mpsc;
-use std::time::{Duration, Instant};
-use std::{io, thread};
+use std::time::Duration;
+use std::io;
+
+type EntityIndex = usize;
+struct Physics {
+    position: Vector2<u8>,
+    velocity: Vector2<f32>,
+}
+
+struct Entity {
+    physics: Option<Physics>,
+    health: Option<f32>,
+}
+
+struct GameState {
+    entities: Vec<Option<Entity>>,
+    player: EntityIndex,
+}
+
+impl Physics {
+    pub fn new() -> Self {
+        Self {
+            position: Vector2::new(0, 0),
+            velocity: Vector2::new(0.0, 0.0),
+        }
+    }
+}
+
+impl Entity {
+    pub fn new() -> Self {
+        Self {
+            physics: Some(Physics::new()),
+            health: Some(1.0),
+        }
+    }
+}
+
+impl GameState {
+    pub fn new() -> Self {
+        let player = Entity::new();
+        let invader = Entity::new();
+
+        Self {
+            entities: vec![Some(player), Some(invader)],
+            player: 0,
+        }
+    }
+}
 fn main() -> Result<(), Box<dyn Error>> {
     let mut audio = Audio::new();
     audio.add("explode", "audio/explode.wav");
@@ -27,43 +69,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(EnterAlternateScreen)?;
     stdout.execute(Hide)?;
 
-    // Render loop in a separate thread
-    let (render_tx, render_rx) = mpsc::channel();
-    let render_handle = thread::spawn(move || {
-        let mut last_frame = frame::new_frame();
-        let mut stdout = io::stdout();
-        render::render(&mut stdout, &last_frame, &last_frame, true);
-        loop {
-            let curr_frame = match render_rx.recv() {
-                Ok(x) => x,
-                Err(_) => break,
-            };
-            render::render(&mut stdout, &last_frame, &curr_frame, false);
-            last_frame = curr_frame;
-        }
-    });
+    let mut game_state = GameState::new();
 
-    // Game loop
-    let mut player = Player::new();
-    let mut instant = Instant::now();
-    let mut invaders = Invaders::new();
     'gameloop: loop {
-        // Per-frame init
-        let delta = instant.elapsed();
-        instant = Instant::now();
-        let mut curr_frame = new_frame();
 
-        // Input
+        // Capture input state
         while event::poll(Duration::default())? {
             if let Event::Key(key_event) = event::read()? {
                 match key_event.code {
-                    KeyCode::Left => player.move_left(),
-                    KeyCode::Right => player.move_right(),
-                    KeyCode::Char(' ') | KeyCode::Enter => {
+                    //KeyCode::Left => player.move_left(),
+                    //KeyCode::Right => player.move_right(),
+                    /*KeyCode::Char(' ') | KeyCode::Enter => {
                         if player.shoot() {
                             audio.play("pew")
                         }
-                    }
+                    }*/
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
@@ -73,40 +93,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        // Updates
-        player.update(delta);
-        if invaders.update(delta) {
-            audio.play("move");
-        }
-        if player.detect_hits(&mut invaders) {
-            audio.play("explode");
-        }
-
-        // Draw and render
-        let drawables: Vec<&dyn Drawable> = vec![&player, &invaders];
-        for drawable in drawables {
-            drawable.draw(&mut curr_frame);
-        }
-        let _ = render_tx.send(curr_frame);
-        thread::sleep(Duration::from_millis(1));
-
-        // Win or lose?
-        if invaders.all_killed() {
-            audio.play("win");
-            break 'gameloop;
-        }
-        if invaders.reached_bottom() {
-            audio.play("lose");
-            break 'gameloop;
-        }
     }
 
-    // Cleanup
-    drop(render_tx);
-    render_handle.join().unwrap();
     audio.wait();
     stdout.execute(Show)?;
     stdout.execute(LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
+
     Ok(())
 }
+
